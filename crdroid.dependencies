@@ -1,0 +1,47 @@
+[
+    {
+        "repository": "crdroidandroid/android_device_samsung_slsi_sepolicy",
+        "target_path": "device/samsung_slsi/sepolicy",
+        "branch": "13.0"
+    },
+    {
+        "repository": "crdroidandroid/android_vendor_samsung_exynos9820-common",
+        "target_path": "vendor/samsung/exynos9820-common",
+        "branch": "13.0"
+    },
+    {
+        "repository": "crdroidandroid/android_kernel_samsung_exynos9820",
+        "target_path": "kernel/samsung/exynos9820",
+        "branch": "13.0"
+    },
+    {
+        "repository": "crdroidandroid/android_hardware_samsung",
+        "target_path": "hardware/samsung",
+        "branch": "13.0"
+    },
+    {
+        "repository": "crdroidandroid/android_hardware_samsung_slsi-linaro_config",
+        "target_path": "hardware/samsung_slsi-linaro/config",
+        "branch": "13.0"
+    },
+    {
+        "repository": "crdroidandroid/android_hardware_samsung_slsi-linaro_exynos",
+        "target_path": "hardware/samsung_slsi-linaro/exynos",
+        "branch": "13.0"
+    },
+    {
+        "repository": "crdroidandroid/android_hardware_samsung_slsi-linaro_exynos5",
+        "target_path": "hardware/samsung_slsi-linaro/exynos5",
+        "branch": "13.0"
+    },
+    {
+        "repository": "crdroidandroid/android_hardware_samsung_slsi-linaro_graphics",
+        "target_path": "hardware/samsung_slsi-linaro/graphics",
+        "branch": "13.0"
+    },
+    {
+        "repository": "crdroidandroid/android_hardware_samsung_slsi-linaro_openmax",
+        "target_path": "hardware/samsung_slsi-linaro/openmax",
+        "branch": "13.0"
+    }
+]

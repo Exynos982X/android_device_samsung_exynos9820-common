@@ -80,6 +80,9 @@ PRODUCT_PACKAGES += \
     gralloc.exynos9820 \
     libion
 
+PRODUCT_PACKAGES += \
+    libGrallocWrapper
+
 # Doze
 PRODUCT_PACKAGES += \
     SamsungDoze

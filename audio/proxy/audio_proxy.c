@@ -376,8 +376,7 @@ static bool is_playback_device_speaker_dualpath(device_type device)
 {
     if (device == DEVICE_SPEAKER_AND_HEADSET ||
         device == DEVICE_SPEAKER_AND_HEADPHONE ||
-        device == DEVICE_SPEAKER_AND_BT_HEADSET ||
-        device == DEVICE_SPEAKER_AND_USB_HEADSET
+        device == DEVICE_SPEAKER_AND_BT_HEADSET
 #ifdef SUPPORT_BTA2DP_OFFLOAD
         || device == DEVICE_SPEAKER_AND_BT_A2DP_HEADPHONE
 #endif
@@ -413,7 +412,7 @@ static bool is_device_speaker(device_type device)
 #ifdef SEC_AUDIO_SUPPORT_GAMECHAT_SPK_AEC
                 || (device == DEVICE_SPEAKER_GAMING)
 #endif
-                || (device == DEVICE_SPEAKER_DEX)) {
+                ) {
             return true;
         }
         return false;
@@ -422,7 +421,7 @@ static bool is_device_speaker(device_type device)
 #ifdef SEC_AUDIO_SUPPORT_GAMECHAT_SPK_AEC
                 || (device == DEVICE_SPEAKER_GAMING_MIC)
 #endif
-                || (device == DEVICE_SPEAKER_DEX_MIC)) {
+                ) {
             return true;
         }
         return false;
@@ -449,8 +448,7 @@ static bool is_quad_mic_device(device_type device)
         flag = (device == DEVICE_MAIN_MIC ||
                 device == DEVICE_HANDSET_MIC ||
                 device == DEVICE_HEADPHONE_MIC ||
-                device == DEVICE_SPEAKER_MIC ||
-                device == DEVICE_SPEAKER_DEX_MIC /*||
+                device == DEVICE_SPEAKER_MIC /*||
                 device == DEVICE_SPEAKER_GAMING_MIC*/);
 	return flag;
 }
@@ -494,20 +492,12 @@ static int get_pcm_device_number(void *proxy, void *proxy_stream)
                 pcm_device_number = AUX_PLAYBACK_DEVICE;
                 break;
 
-            case ASTREAM_PLAYBACK_DIRECT:
-                pcm_device_number = DIRECT_PLAYBACK_DEVICE;
-                break;
-
             case ASTREAM_CAPTURE_PRIMARY:
                 pcm_device_number = PRIMARY_CAPTURE_DEVICE;
                 break;
 
             case ASTREAM_CAPTURE_CALL:
                 pcm_device_number = CALL_RECORD_DEVICE;
-                break;
-
-            case ASTREAM_CAPTURE_TELEPHONYRX:
-                pcm_device_number = TELERX_RECORD_DEVICE;
                 break;
 
             case ASTREAM_CAPTURE_LOW_LATENCY:
@@ -518,7 +508,8 @@ static int get_pcm_device_number(void *proxy, void *proxy_stream)
                 pcm_device_number = MMAP_CAPTURE_DEVICE;
                 break;
 
-            case ASTREAM_CAPTURE_FM:
+            case ASTREAM_CAPTURE_FM_TUNER:
+            case ASTREAM_CAPTURE_FM_RECORDING:
                 pcm_device_number = FM_RECORD_DEVICE;
                 break;
 
@@ -569,22 +560,8 @@ static void enable_erap_in(void *proxy, device_type target_device)
 
         /* Enables ERAP In Path */
         if (aproxy->erap_in == NULL) {
-            /* If target device is USB Headset, then loopback path's PCM channels should be
-             * matched with USB device supported channels */
-            if (target_device == DEVICE_SPEAKER_AND_USB_HEADSET) {
-                pcmconfig.channels = proxy_usb_get_playback_channels(aproxy->usb_aproxy);
-                /* check if connected USB headset's highest channel count is 6, then forcelly
-                 * change it to 8 channels as A-Box HW cannot support 6 channel conversion */
-                if (pcmconfig.channels == ABOX_UNSUPPORTED_CHANNELS) {
-                    ALOGI("proxy-%s: supported CH is(%d) Changed to (%d)", __func__, pcmconfig.channels,
-                        ABOX_SUPPORTED_MAX_CHANNELS);
-                    pcmconfig.channels = ABOX_SUPPORTED_MAX_CHANNELS;
-                }
-                ALOGI("proxy-%s: ERAP In USB Device channels updated as CC(%d)",
-                  __func__, pcmconfig.channels);
-            }
 #ifdef SUPPORT_QUAD_MIC
-            else if (target_device == DEVICE_CALL_FWD || target_device == DEVICE_SPECTRO) {
+            else if (target_device == DEVICE_CALL_FWD) {
                 pcmconfig.channels = MEDIA_4_CHANNELS;
                 ALOGI("proxy-%s: Call-forwarding/spectro ERAP In channels fixed to (%d)", __func__, pcmconfig.channels);
             }
@@ -1533,13 +1510,12 @@ static void enable_internal_path(void *proxy, int ausage, device_type target_dev
         return;
     }
 
-    if (target_device == DEVICE_EARPIECE ||
-        target_device == DEVICE_SPEAKER || target_device == DEVICE_SPEAKER2 ||
-        target_device == DEVICE_SPEAKER_DUAL || target_device == DEVICE_SPEAKER_DEX ||
-        target_device == DEVICE_SPEAKER_AND_HEADSET || target_device == DEVICE_SPEAKER_AND_HEADPHONE) {
+    if (target_device == DEVICE_SPEAKER || target_device == DEVICE_SPEAKER_AND_HEADSET ||
+        target_device == DEVICE_SPEAKER_AND_HEADPHONE) {
 #ifdef SUPPORT_DIRECT_RCVSPK_PATH
             if (is_playback_device_speaker_dualpath(target_device)
-                || ausage == AUSAGE_FM_RADIO || ausage == AUSAGE_USB_FM_RADIO)
+                || ausage == AUSAGE_FM_RADIO_CAPTURE
+                || ausage == AUSAGE_FM_RADIO_TUNER)
 #endif
             {
                 enable_spkamp_playback(aproxy);
@@ -1575,15 +1551,13 @@ static void enable_internal_path(void *proxy, int ausage, device_type target_dev
         }
         enable_btsco_playback(aproxy);
     } else if (target_device == DEVICE_HEADSET || target_device == DEVICE_HEADPHONE ||
-               target_device == DEVICE_CALL_FWD || target_device == DEVICE_SPECTRO ||
-               target_device == DEVICE_HEARING_AID) {
+               target_device == DEVICE_CALL_FWD) {
         /* In cases of CP/AP Calland Loopback, ERAP Path is needed for SE */
         // In case of Normal Media, ERAP Path is not needed
         if (is_active_usage_CPCall(aproxy) || is_active_usage_APCall(aproxy) ||
             is_usage_Loopback(ausage))
             enable_erap_in(aproxy, target_device);
-    } else if (target_device == DEVICE_USB_HEADSET ||
-               target_device == DEVICE_SPEAKER_AND_USB_HEADSET) {
+    } else if (target_device == DEVICE_USB_HEADSET) {
         /* Prepare USB device configuration based upon usage */
         if (aproxy->usb_aproxy) {
             /* USB output playback constraints
@@ -1605,14 +1579,9 @@ static void enable_internal_path(void *proxy, int ausage, device_type target_dev
         /* set USB playback modifier controls */
         set_usb_playback_modifier(aproxy);
 
-        if (target_device == DEVICE_SPEAKER_AND_USB_HEADSET) {
-            enable_spkamp_playback(aproxy);
-            enable_spkamp_reference(aproxy);
-        }
         // In cases of CP/AP Call, Internal Loop & ERAP Path is needed for SE
         // In case of Normal Media, No Paths are needed
-        if (target_device == DEVICE_SPEAKER_AND_USB_HEADSET ||
-            is_active_usage_CPCall(aproxy) || is_active_usage_APCall(aproxy) ||
+        if (is_active_usage_CPCall(aproxy) || is_active_usage_APCall(aproxy) ||
             is_usage_Loopback(ausage)) {
             enable_erap_in(aproxy, target_device);
         }
@@ -1634,20 +1603,6 @@ static void enable_internal_path(void *proxy, int ausage, device_type target_dev
         target_device >= DEVICE_MAIN_MIC)
         enable_voice_tx_direct_in(aproxy, target_device);
 
-    /* enable usb_fm_radio loopback pcm node
-     * Assumption: USB Mic will not used in usb-fm-radio scenario
-     */
-    if (ausage == AUSAGE_USB_FM_RADIO && target_device < DEVICE_MAIN_MIC
-        && target_device != DEVICE_USB_HEADSET) {
-        // Check whether USB device is single clocksource, and match samplerate
-        // with playback
-        if (aproxy->is_usb_single_clksrc)
-            proxy_usb_capture_prepare(aproxy->usb_aproxy, true);
-
-        if (aproxy->usb_aproxy)
-            proxy_usb_open_in_proxy(aproxy->usb_aproxy);
-        enable_usb_in_loopback(proxy);
-    }
     return;
 }
 
@@ -1661,26 +1616,18 @@ static void disable_internal_path(void *proxy, int ausage, device_type target_de
         return;
     }
 
-    /* disable usb_fm_radio loopback pcm node */
-    if (ausage == AUSAGE_USB_FM_RADIO && target_device < DEVICE_MAIN_MIC
-        && target_device != DEVICE_USB_HEADSET) {
-        disable_usb_in_loopback(proxy);
-        if (aproxy->usb_aproxy)
-            proxy_usb_close_in_proxy(aproxy->usb_aproxy);
-    }
-
     /* disable direct MIC path pcm for voiceCall scenario */
     if ((is_usage_CPCall(ausage) || is_usage_Loopback(ausage)) &&
         target_device >= DEVICE_MAIN_MIC)
         disable_voice_tx_direct_in(aproxy);
 
     if (target_device == DEVICE_SPEAKER ||
-        target_device == DEVICE_SPEAKER2 || target_device == DEVICE_SPEAKER_DUAL ||
-        target_device == DEVICE_EARPIECE || target_device == DEVICE_SPEAKER_DEX ||
-        target_device == DEVICE_SPEAKER_AND_HEADSET || target_device == DEVICE_SPEAKER_AND_HEADPHONE) {
+        target_device == DEVICE_EARPIECE || target_device == DEVICE_SPEAKER_AND_HEADSET ||
+        target_device == DEVICE_SPEAKER_AND_HEADPHONE) {
 #ifdef SUPPORT_DIRECT_RCVSPK_PATH
         if (is_playback_device_speaker_dualpath(target_device)
-            || ausage == AUSAGE_FM_RADIO || ausage == AUSAGE_USB_FM_RADIO)
+            || ausage == AUSAGE_FM_RADIO_CAPTURE
+            || ausage == AUSAGE_FM_RADIO_TUNER)
 #endif
         {
             disable_erap_in(aproxy);
@@ -1719,23 +1666,16 @@ static void disable_internal_path(void *proxy, int ausage, device_type target_de
         /* reset Mixp configuration to default values when path is disabled */
         reset_playback_modifier(aproxy);
     } else if (target_device == DEVICE_HEADSET || target_device == DEVICE_HEADPHONE ||
-               target_device == DEVICE_CALL_FWD || target_device == DEVICE_SPECTRO ||
-               target_device == DEVICE_HEARING_AID) {
+               target_device == DEVICE_CALL_FWD) {
         if (is_active_usage_CPCall(aproxy) || is_active_usage_APCall(aproxy) ||
             is_usage_Loopback(ausage))
             disable_erap_in(aproxy);
-    } else if (target_device == DEVICE_USB_HEADSET ||
-                target_device == DEVICE_SPEAKER_AND_USB_HEADSET) {
-        if (target_device == DEVICE_SPEAKER_AND_USB_HEADSET ||
-            is_active_usage_CPCall(aproxy) || is_active_usage_APCall(aproxy) ||
+    } else if (target_device == DEVICE_USB_HEADSET) {
+        if (is_active_usage_CPCall(aproxy) || is_active_usage_APCall(aproxy) ||
             is_usage_Loopback(ausage)) {
             disable_erap_in(aproxy);
         }
 
-        if (target_device == DEVICE_SPEAKER_AND_USB_HEADSET) {
-            disable_spkamp_playback(aproxy);
-            disable_spkamp_reference(aproxy);
-        }
         disable_usb_out_loopback(aproxy);
         if (aproxy->usb_aproxy)
             proxy_usb_close_out_proxy(aproxy->usb_aproxy);
@@ -2284,7 +2224,7 @@ static void do_operations_by_playback_route_set(struct audio_proxy *aproxy,
     }
 
     /* Open/Close FM Radio PCM node based on Enable/disable */
-    if (routed_ausage != AUSAGE_FM_RADIO && routed_ausage != AUSAGE_USB_FM_RADIO) {
+    if (routed_ausage != AUSAGE_FM_RADIO_CAPTURE && routed_ausage != AUSAGE_FM_RADIO_TUNER) {
         fmradio_playback_stop(aproxy);
         fmradio_capture_stop(aproxy);
     }
@@ -2687,8 +2627,7 @@ static int get_next_buffer(struct resampler_buffer_provider *buffer_provider,
                     return apstream->actual_read_status;
                 }
 
-                if (apstream->stream_type == ASTREAM_CAPTURE_CALL ||
-                    apstream->stream_type == ASTREAM_CAPTURE_TELEPHONYRX) {
+                if (apstream->stream_type == ASTREAM_CAPTURE_CALL) {
                     /*
                      * [Call Recording Case]
                      * In case of Call Recording, A-Box sends stereo stream which uplink/downlink voice
@@ -3243,36 +3182,6 @@ void *proxy_create_playback_stream(void *proxy, int type, void *config, char *ad
 
             break;
 
-        case ASTREAM_PLAYBACK_DIRECT:
-            apstream->sound_card = DIRECT_PLAYBACK_CARD;
-            apstream->sound_device = get_pcm_device_number(aproxy, apstream);
-            apstream->pcmconfig = pcm_config_direct_playback;
-
-            apstream->need_channelpadding = false;
-            apstream->proc_buf_out = NULL;
-            apstream->proc_buf_size = 0;
-
-            /* check whether connected USB device supports requested channels or not */
-            if (!(proxy_is_usb_playback_device_connected(aproxy->usb_aproxy) &&
-                (int)audio_channel_count_from_out_mask(apstream->requested_channel_mask) <=
-                proxy_usb_get_playback_highest_supported_channels(aproxy->usb_aproxy))) {
-                if (proxy_is_usb_playback_device_connected(aproxy->usb_aproxy))
-                    ALOGE("proxy-%s: Direct stream channel mismatch (request channels %u supported channels %u) ",
-                        __func__, audio_channel_count_from_out_mask(apstream->requested_channel_mask),
-                        proxy_usb_get_playback_highest_supported_channels(aproxy->usb_aproxy));
-                else
-                    ALOGE("proxy-%s: Direct stream is not supported for other output devices except USB ", __func__);
-                goto err_open;
-            }
-
-            /* check whether request configurations are supported by Direct
-             * stream or not, and update pcmconfig */
-            if (check_direct_config_support(apstream)) {
-                ALOGE("proxy-%s: Direct stream unsupported configuration ", __func__);
-                goto err_open;
-            }
-            break;
-
         default:
             ALOGE("proxy-%s: failed to open Proxy Stream as unknown stream type(%d)", __func__,
                                                                           apstream->stream_type);
@@ -3581,41 +3490,6 @@ int proxy_write_playback_buffer(void *proxy_stream, void* buffer, int bytes)
         if (apstream->pcm) {
             void *proc_buf_out = buffer;
             int dst_buffer_size = bytes;
-
-            /* Direct stream volume control & channel expanding if needed */
-            if (apstream->stream_type == ASTREAM_PLAYBACK_DIRECT && apstream->need_channelpadding) {
-                unsigned int bytes_per_src_sample = audio_bytes_per_sample(apstream->requested_format);
-                unsigned int bytes_per_dst_sample = (pcm_format_to_bits(apstream->pcmconfig.format) >> 3);
-                int num_device_channels = proxy_get_actual_channel_count(apstream);
-                int num_req_channels = audio_channel_count_from_out_mask(apstream->requested_channel_mask);
-
-                int frames_num = bytes / (num_req_channels *
-                    audio_bytes_per_sample(apstream->requested_format));
-
-                /* Prepare Channel Conversion output Buffer */
-                dst_buffer_size = frames_num * num_device_channels * bytes_per_dst_sample;
-
-                if (apstream->proc_buf_size < dst_buffer_size) {
-                    apstream->proc_buf_size = dst_buffer_size;
-                    apstream->proc_buf_out = realloc(apstream->proc_buf_out, dst_buffer_size);
-                    ALOGI("%s-%s: alloc expand channel buffer with %d bytes req_channels %d device_channels %d",
-                              stream_table[apstream->stream_type], __func__, dst_buffer_size, num_req_channels, num_device_channels);
-                    ALOGI("%s-%s: Channel adjust src-channels %d to %d, bytes per sample src-bytes %d to %d ",
-                              stream_table[apstream->stream_type], __func__, num_req_channels,
-                              num_device_channels, bytes_per_src_sample, bytes_per_dst_sample);
-                }
-
-                /* Assigned allocated buffer as output buffer for channel expanding */
-                proc_buf_out = apstream->proc_buf_out;
-
-                /* Adjust channels by adding zeros to audio frame end, for Direct output stream */
-                ret = adjust_channels(buffer, num_req_channels,
-                            proc_buf_out, num_device_channels,
-                            bytes_per_src_sample, bytes);
-                if (ret != dst_buffer_size)
-                    ALOGE("%s-%s: channel convert failed", stream_table[apstream->stream_type], __func__);
-
-            }
 
             ret = pcm_write(apstream->pcm, (void *)proc_buf_out, (unsigned int)dst_buffer_size);
             if (ret == 0) {
@@ -4025,8 +3899,7 @@ void proxy_set_best_playback_pcmconfig(void *proxy, void *proxy_stream)
     /* update & check whether USB device re-configuraiton is required for best config */
     reprepare_needed = proxy_usb_out_reconfig_needed(aproxy->usb_aproxy);
 
-    if ((aproxy->active_playback_device == DEVICE_USB_HEADSET
-        || aproxy->active_playback_device == DEVICE_SPEAKER_AND_USB_HEADSET)
+    if ((aproxy->active_playback_device == DEVICE_USB_HEADSET)
         && !aproxy->is_usb_single_clksrc && !is_usage_CPCall(aproxy->active_playback_ausage)
         && reprepare_needed) {
         /* steps for re-configuring USB device configuration
@@ -4181,14 +4054,6 @@ void *proxy_create_capture_stream(void *proxy, int type, int usage, void *config
             check_conversion(apstream);
             break;
 
-        case ASTREAM_CAPTURE_TELEPHONYRX:
-            apstream->sound_card = TELERX_RECORD_CARD;
-            apstream->sound_device = get_pcm_device_number(aproxy, apstream);
-            apstream->pcmconfig = pcm_config_call_record;
-
-            check_conversion(apstream);
-            break;
-
         case ASTREAM_CAPTURE_LOW_LATENCY:
             apstream->sound_card = LOW_CAPTURE_CARD;
             apstream->sound_device = get_pcm_device_number(aproxy, apstream);
@@ -4226,7 +4091,8 @@ void *proxy_create_capture_stream(void *proxy, int type, int usage, void *config
             }
             break;
 
-        case ASTREAM_CAPTURE_FM:
+        case ASTREAM_CAPTURE_FM_TUNER:
+        case ASTREAM_CAPTURE_FM_RECORDING:
             apstream->sound_card = FM_RECORD_CARD;
             apstream->sound_device = get_pcm_device_number(aproxy, apstream);
             apstream->pcmconfig = pcm_config_fm_record;
@@ -4410,9 +4276,9 @@ int proxy_open_capture_stream(void *proxy_stream, int32_t min_size_frames, void 
         /* Virtual dai PCM is required only for normal capture */
         if (apstream->stream_type != ASTREAM_CAPTURE_LOW_LATENCY &&
             apstream->stream_type != ASTREAM_CAPTURE_CALL &&
-            apstream->stream_type != ASTREAM_CAPTURE_FM &&
-            apstream->stream_type != ASTREAM_CAPTURE_MMAP &&
-            apstream->stream_type != ASTREAM_CAPTURE_TELEPHONYRX) {
+            apstream->stream_type != ASTREAM_CAPTURE_FM_TUNER &&
+            apstream->stream_type != ASTREAM_CAPTURE_FM_RECORDING &&
+            apstream->stream_type != ASTREAM_CAPTURE_MMAP) {
             /* WDMA pcm should be started before opening virtual pcm */
             if (pcm_start(apstream->dma_pcm) == 0) {
                 ALOGI("proxy-%s: PCM Device(%s) with SR(%u) PF(%d) CC(%d) is started",
@@ -5086,8 +4952,7 @@ bool proxy_set_route(void *proxy, int ausage, int device, int modifier, bool set
             } else if (routed_modifier == MODIFIER_NONE && aproxy->active_playback_modifier != MODIFIER_NONE)
                 reset_modifier(aproxy, aproxy->active_playback_modifier);
 
-            if (routed_device == DEVICE_USB_HEADSET ||
-                routed_device == DEVICE_SPEAKER_AND_USB_HEADSET) {
+            if (routed_device == DEVICE_USB_HEADSET) {
                 /* set USB gain controls if required */
                 make_path(routed_ausage, routed_device, path_name);
                 proxy_usb_set_gain(aproxy->usb_aproxy, path_name);
@@ -5098,7 +4963,7 @@ bool proxy_set_route(void *proxy, int ausage, int device, int modifier, bool set
             // Set Loopback for Playback Path
             enable_internal_path(aproxy, routed_ausage, routed_device);
 
-            if (ausage == AUSAGE_FM_RADIO || ausage == AUSAGE_USB_FM_RADIO) {
+            if (ausage == AUSAGE_FM_RADIO_CAPTURE || ausage == AUSAGE_FM_RADIO_TUNER) {
                 /* Open/Close FM Radio PCM node based on Enable/disable */
                 proxy_start_fm_radio(aproxy);
             }
@@ -5162,7 +5027,6 @@ bool proxy_set_route(void *proxy, int ausage, int device, int modifier, bool set
         }
 
         if (routed_device == DEVICE_USB_HEADSET ||
-            routed_device == DEVICE_SPEAKER_AND_USB_HEADSET ||
             is_usb_mic_device(routed_device)) {
             /* reset USB gain controls */
             make_path(routed_ausage, routed_device, path_name);
@@ -5391,8 +5255,7 @@ void proxy_set_audio_interface(void *proxy, unsigned int interface, unsigned int
         proxy_set_mixer_value_int(proxy, MIXER_CTL_ABOX_UAIF0_CHANNEL, channel);
 
         /* skip SIFS0 configuration for USB device */
-        if (!(aproxy->active_playback_device == DEVICE_USB_HEADSET ||
-            aproxy->active_playback_device == DEVICE_SPEAKER_AND_USB_HEADSET)) {
+        if (!(aproxy->active_playback_device == DEVICE_USB_HEADSET)) {
             proxy_set_mixer_value_int(proxy, MIXER_CTL_ABOX_SIFS0_SAMPLERATE, sample_rate);
             proxy_set_mixer_value_int(proxy, MIXER_CTL_ABOX_SIFS0_WIDTH, bit_width);
             proxy_set_mixer_value_int(proxy, MIXER_CTL_ABOX_SIFS0_CHANNEL, channel);
@@ -5426,7 +5289,6 @@ void proxy_set_audio_interface(void *proxy, unsigned int interface, unsigned int
         proxy_set_mixer_value_int(proxy, MIXER_CTL_ABOX_UAIF3_CHANNEL, channel);
         proxy_set_mixer_value_int(proxy, MIXER_CTL_ABOX_UAIF3_SWITCH, MIXER_ON);
     }
-
     return ;
 }
 
@@ -5470,18 +5332,11 @@ void proxy_set_volume(void *proxy, int volume_type, float left, float right)
         val[1] = (int)(right * COMPRESS_PLAYBACK_VOLUME_MAX);
 
         ctrl = mixer_get_ctl_by_name(aproxy->mixer, OFFLOAD_VOLUME_CONTROL_NAME);
-    } else if (volume_type == VOLUME_TYPE_MMAP) {
-        val[0] = (int)(left * MMAP_PLAYBACK_VOLUME_MAX);
-        val[1] = (int)(right * MMAP_PLAYBACK_VOLUME_MAX);
-
-        ctrl = mixer_get_ctl_by_name(aproxy->mixer, MIXER_CTL_ABOX_MMAP_OUT_VOLUME_CONTROL);
     }
 
     if (ctrl) {
         if (volume_type == VOLUME_TYPE_OFFLOAD)
             ret = mixer_ctl_set_array(ctrl, val, sizeof(val)/sizeof(val[0]));
-        else if (volume_type == VOLUME_TYPE_MMAP)
-            ret = mixer_ctl_set_value(ctrl, 0, val[0]);
 
         if (ret != 0)
             ALOGE("proxy-%s: failed to set Volume", __func__);
@@ -5835,6 +5690,7 @@ int proxy_get_microphones(void *proxy, void *array, int *count)
 
 void proxy_update_uhqa_playback_stream(void *proxy_stream, int hq_mode)
 {
+#if 0
     struct audio_proxy_stream *apstream = (struct audio_proxy_stream *)proxy_stream;
     audio_quality_mode_t high_quality_mode = (audio_quality_mode_t)hq_mode;
 
@@ -5865,6 +5721,7 @@ void proxy_update_uhqa_playback_stream(void *proxy_stream, int hq_mode)
             ALOGVV("proxy-%s: not supported stream",  __func__);
         }
     }
+#endif // TODO: Linux4
 }
 
 void proxy_set_uhqa_stream_config(void *proxy_stream, bool config)

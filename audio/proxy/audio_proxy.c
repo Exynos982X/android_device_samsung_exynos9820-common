@@ -1510,7 +1510,8 @@ static void enable_internal_path(void *proxy, int ausage, device_type target_dev
         return;
     }
 
-    if (target_device == DEVICE_SPEAKER || target_device == DEVICE_SPEAKER_AND_HEADSET ||
+    if (target_device == DEVICE_SPEAKER ||
+        target_device == DEVICE_EARPIECE || target_device == DEVICE_SPEAKER_AND_HEADSET ||
         target_device == DEVICE_SPEAKER_AND_HEADPHONE) {
 #ifdef SUPPORT_DIRECT_RCVSPK_PATH
             if (is_playback_device_speaker_dualpath(target_device)

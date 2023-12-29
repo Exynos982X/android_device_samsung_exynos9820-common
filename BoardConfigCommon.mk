@@ -128,7 +128,7 @@ VENDOR_SECURITY_PATCH := 2023-01-01
 
 ## SELinux
 BOARD_SEPOLICY_TEE_FLAVOR := teegris
-include device/lineage/sepolicy/exynos/sepolicy.mk
+include device/droidx/sepolicy/exynos/sepolicy.mk
 include device/samsung_slsi/sepolicy/sepolicy.mk
 
 BOARD_VENDOR_SEPOLICY_DIRS += $(COMMON_PATH)/sepolicy/vendor
@@ -141,6 +141,7 @@ BOARD_AVB_RECOVERY_KEY_PATH := external/avb/test/data/testkey_rsa4096.pem
 BOARD_AVB_RECOVERY_ROLLBACK_INDEX := 1
 BOARD_AVB_RECOVERY_ROLLBACK_INDEX_LOCATION := 1
 
+BUILD_BROKEN_DUP_RULES := true
 ## Wi-Fi
 BOARD_WLAN_BCMDHD_SAE            := true
 BOARD_WLAN_DEVICE                := bcmdhd

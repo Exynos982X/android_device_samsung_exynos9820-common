@@ -4,3 +4,6 @@ persist.sys.sf.disable_blurs=1
 
 ## fastbootd
 ro.fastbootd.available=true
+
+## DroidX
+- ro.droidx.maintainer=MODEDGES
